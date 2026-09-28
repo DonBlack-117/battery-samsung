@@ -91,6 +91,9 @@ def api_renovation(modelo: str = "S24 Ultra"):
         return jsonify({"error": error}), 503
     indicators = get_renovation_indicators()
     report = analyze_renovation_risk(indicators, data.get("health_pct"))
+    # Valores crudos para la web: distinguir "intacto" (0) de "no se pudo leer" (None)
+    report["warranty_bit"] = indicators.get("warranty_bit") or indicators.get("boot_warranty_bit")
+    report["knox_fuse"] = indicators.get("knox_fuse")
     return jsonify(report)
 
 
