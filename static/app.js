@@ -53,13 +53,20 @@ function animateNumber(el, toValue, suffix = "", decimals = 1) {
 }
 
 // ── Health color ──────────────────────────────────────────
+// Colores de salud desaturados (son datos: verde → ámbar → rojo)
+const COLORS = {
+  ok: "#8ED1A5", fair: "#E3C38A", poor: "#E4A57C", bad: "#E39A9A",
+  none: "#545C64", accent: "#A3C4DC", soft: "#AAB2B9", mute: "#7E878F",
+  line: "rgba(37, 42, 47, 0.9)", panel: "#15181B",
+};
+
 function healthColor(pct) {
-  if (pct === null || pct === undefined) return "#274060";
-  if (pct >= 90) return "#00e676";
-  if (pct >= 80) return "#69f0ae";
-  if (pct >= 70) return "#ffd740";
-  if (pct >= 60) return "#ff9100";
-  return "#ff5252";
+  if (pct === null || pct === undefined) return COLORS.none;
+  if (pct >= 85) return COLORS.ok;
+  if (pct >= 80) return "#B7D39A";
+  if (pct >= 70) return COLORS.fair;
+  if (pct >= 60) return COLORS.poor;
+  return COLORS.bad;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -154,21 +161,12 @@ function updateGauge(data) {
 // ══════════════════════════════════════════════════════════
 
 function updateCards(data) {
-  // Level — count-up + gradient bar
+  // Las unidades ya están en el HTML (.metric-unit): aquí solo va el número
   const lvl = data.level ?? 0;
-  animateNumber($("m-level"), lvl, "%", 0);
+  animateNumber($("m-level"), lvl, "", 0);
   const barFill = $("level-bar-fill");
   barFill.style.width = `${lvl}%`;
-  if (lvl > 50) {
-    barFill.style.background  = "linear-gradient(90deg, #0099cc, #00ccff)";
-    barFill.style.boxShadow   = "0 0 8px rgba(0, 204, 255, 0.65)";
-  } else if (lvl > 20) {
-    barFill.style.background  = "linear-gradient(90deg, #cc8800, #ffd740)";
-    barFill.style.boxShadow   = "0 0 8px rgba(255, 215, 64, 0.5)";
-  } else {
-    barFill.style.background  = "linear-gradient(90deg, #aa2200, #ff5252)";
-    barFill.style.boxShadow   = "0 0 8px rgba(255, 82, 82, 0.55)";
-  }
+  barFill.style.backgroundColor = lvl > 50 ? COLORS.accent : lvl > 20 ? COLORS.fair : COLORS.bad;
 
   // Status
   $("m-status").textContent = data.status_name ?? "—";
@@ -176,7 +174,7 @@ function updateCards(data) {
   // Temperature — count-up
   const temp = data.temp_c;
   if (temp !== null && temp !== undefined) {
-    animateNumber($("m-temp"), temp, " °C", 1);
+    animateNumber($("m-temp"), temp, "", 1);
   } else {
     $("m-temp").textContent = "—";
   }
@@ -187,7 +185,7 @@ function updateCards(data) {
 
   // Voltage — count-up
   if (data.voltage_mv) {
-    animateNumber($("m-voltage"), data.voltage_mv, " mV", 0);
+    animateNumber($("m-voltage"), data.voltage_mv, "", 0);
   } else {
     $("m-voltage").textContent = "—";
   }
@@ -197,7 +195,7 @@ function updateCards(data) {
     data.current_mah ??
     (data.charge_counter ? Math.round(data.charge_counter / 1000) : null);
   if (mah !== null) {
-    animateNumber($("m-counter"), mah, " mAh", 0);
+    animateNumber($("m-counter"), mah, "", 0);
   } else {
     $("m-counter").textContent = "—";
   }
@@ -215,54 +213,30 @@ function updateAlerts(data) {
   const alerts = [];
 
   if (data.temp_c > 40)
-    alerts.push({
-      level: "danger",
-      icon: "🔥",
-      text: `Temperatura elevada: ${data.temp_c}°C`,
-    });
+    alerts.push({ level: "danger", text: `Temperatura muy alta: ${data.temp_c} °C. Deja de cargar y déjalo enfriar.` });
   else if (data.temp_c > 35)
-    alerts.push({
-      level: "warn",
-      icon: "🌡️",
-      text: `Temperatura alta: ${data.temp_c}°C`,
-    });
-
-  if (data.health_pct !== null && data.health_pct < 80)
-    alerts.push({
-      level: "warn",
-      icon: "🔋",
-      text: `Salud por debajo del 80% (${data.health_pct}%)`,
-    });
+    alerts.push({ level: "warn", text: `Temperatura alta: ${data.temp_c} °C.` });
 
   if (data.health_pct !== null && data.health_pct < 60)
-    alerts.push({
-      level: "danger",
-      icon: "⚡",
-      text: "Batería deficiente — considera reemplazarla",
-    });
+    alerts.push({ level: "danger", text: `Salud en ${data.health_pct} %. Conviene cambiar la batería.` });
+  else if (data.health_pct !== null && data.health_pct < 80)
+    alerts.push({ level: "warn", text: `Salud por debajo del 80 % (${data.health_pct} %).` });
 
   if (data.protect_note)
-    alerts.push({
-      level: "warn",
-      icon: "ℹ️",
-      text: "Protección de batería activa (límite al 80-85%)",
-    });
+    alerts.push({ level: "warn", text: "Protección de batería activa: la carga se limita al 80–85 %." });
 
   const list = $("alerts-list");
   if (alerts.length === 0) {
-    list.innerHTML = '<p class="no-alerts dim">Sin alertas activas ✓</p>';
+    list.innerHTML = '<p class="no-alerts">Sin alertas.</p>';
     return;
   }
 
   list.innerHTML = alerts
-    .map(
-      (a) => `
+    .map((a) => `
     <div class="alert-item alert-${a.level}">
-      <span class="alert-icon">${a.icon}</span>
+      <span class="alert-icon" aria-hidden="true"></span>
       <span>${a.text}</span>
-    </div>
-  `,
-    )
+    </div>`)
     .join("");
 }
 
@@ -311,7 +285,11 @@ function updateStats(stats) {
   } else {
     $("projection-wrap").classList.add("hidden");
     $("s-to-80").textContent =
-      stats.total_readings < 2 ? "Insuficientes datos" : "—";
+      stats.total_readings < 2
+        ? "faltan lecturas"
+        : stats.monthly_degradation != null && stats.monthly_degradation <= 0
+          ? "no está bajando"
+          : "—";
   }
 }
 
@@ -353,40 +331,37 @@ function renderChart() {
 
   const ctx = canvas.getContext("2d");
 
-  const grad = ctx.createLinearGradient(0, 0, 0, 260);
-  grad.addColorStop(0, "rgba(0, 204, 255, 0.30)");
-  grad.addColorStop(1, "rgba(0, 204, 255, 0.0)");
+  const grad = ctx.createLinearGradient(0, 0, 0, 280);
+  grad.addColorStop(0, "rgba(163, 196, 220, 0.16)");
+  grad.addColorStop(1, "rgba(163, 196, 220, 0)");
 
-  const gradLevel = ctx.createLinearGradient(0, 0, 0, 260);
-  gradLevel.addColorStop(0, "rgba(0, 230, 118, 0.15)");
-  gradLevel.addColorStop(1, "rgba(0, 230, 118, 0.0)");
-
-  const pr = rtBuffer.length < 12 ? 4 : 2;
+  const pr = rtBuffer.length < 12 ? 3 : 0;
 
   const datasets = [
     {
       label: "Salud (%)",
       data: healthData,
-      borderColor: "#00ccff",
+      borderColor: COLORS.accent,
       backgroundColor: grad,
-      borderWidth: 2.5,
+      borderWidth: 2,
       pointRadius: pr,
-      pointBackgroundColor: "#00ccff",
-      pointBorderColor: "#071525",
+      pointHoverRadius: 4,
+      pointBackgroundColor: COLORS.accent,
+      pointBorderColor: COLORS.panel,
       pointBorderWidth: 2,
-      tension: 0.35,
+      tension: 0.3,
       fill: true,
     },
     {
       label: "Carga (%)",
       data: levelData,
-      borderColor: "#00e676",
-      backgroundColor: gradLevel,
-      borderWidth: 1.5,
+      borderColor: COLORS.soft,
+      backgroundColor: "transparent",
+      borderWidth: 1.25,
       pointRadius: 0,
-      tension: 0.35,
-      fill: true,
-      borderDash: [4, 4],
+      tension: 0.3,
+      fill: false,
+      borderDash: [4, 3],
     },
   ];
 
@@ -407,21 +382,17 @@ function renderChart() {
       animation: { duration: 500 },
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: {
-          labels: {
-            color: "#5f8fad",
-            font: { family: "Inter", size: 12 },
-            usePointStyle: true,
-            pointStyleWidth: 10,
-          },
-        },
+        // La leyenda está en el HTML (#realtime-badge)
+        legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(5, 16, 30, 0.92)",
-          borderColor: "rgba(0, 204, 255, 0.2)",
+          backgroundColor: "rgba(21, 24, 27, 0.96)",
+          borderColor: "rgba(47, 53, 59, 1)",
           borderWidth: 1,
-          titleColor: "#eaf4ff",
-          bodyColor: "#5f8fad",
-          padding: 14,
+          titleColor: "#E8ECEF",
+          bodyColor: COLORS.soft,
+          titleFont: { family: "Geist", weight: "600" },
+          bodyFont: { family: "Geist Mono", size: 12 },
+          padding: 12,
           cornerRadius: 10,
           displayColors: true,
           boxWidth: 8,
@@ -434,22 +405,25 @@ function renderChart() {
       },
       scales: {
         x: {
-          grid: { color: "rgba(15, 37, 64, 0.8)", drawBorder: false },
+          grid: { display: false },
           ticks: {
-            color: "#274060",
-            font: { family: "Inter", size: 11 },
-            maxTicksLimit: 8,
+            color: COLORS.mute,
+            font: { family: "Geist Mono", size: 11 },
+            maxTicksLimit: 6,
+            maxRotation: 0,
           },
           border: { display: false },
         },
         y: {
           min: _yMin(healthData, levelData),
           max: 102,
-          grid: { color: "rgba(15, 37, 64, 0.8)", drawBorder: false },
+          grid: { color: COLORS.line },
           ticks: {
-            color: "#274060",
-            font: { family: "Inter", size: 11 },
-            callback: (v) => v + "%",
+            color: COLORS.mute,
+            font: { family: "Geist Mono", size: 11 },
+            maxTicksLimit: 5,
+            // 102 es solo margen superior: no se etiqueta
+            callback: (v) => (v > 100 ? "" : v + "%"),
           },
           border: { display: false },
         },
@@ -460,7 +434,8 @@ function renderChart() {
 
 function _yMin(healthData, levelData) {
   const all = [...healthData, ...levelData].filter((v) => v !== null && v !== undefined);
-  return all.length ? Math.max(0, Math.min(...all) - 5) : 0;
+  // Mínimo redondeado a la decena inferior, con 5 puntos de margen (p. ej. 79 → 70)
+  return all.length ? Math.max(0, Math.floor((Math.min(...all) - 5) / 10) * 10) : 0;
 }
 
 function updateChartSubtitle() {
@@ -483,13 +458,13 @@ function updateChartSubtitle() {
 function setStatus(state) {
   const dot = $("status-dot");
   dot.className = `status-dot status-${state}`;
-  dot.textContent = state === "ok" ? "⬤ Conectado" : "⬤ Sin conexión";
+  dot.textContent = state === "ok" ? "teléfono conectado" : "sin conexión";
 }
 
 function updateFooter() {
   const now = new Date();
   $("last-update").textContent =
-    `Última actualización: ${now.toLocaleTimeString("es-ES")}`;
+    `Última lectura: ${now.toLocaleTimeString("es-ES")}`;
 }
 
 function showError(msg) {
@@ -499,6 +474,76 @@ function showError(msg) {
 
 function hideError() {
   $("error-banner").classList.add("hidden");
+}
+
+// ══════════════════════════════════════════════════════════
+//  ¿REACONDICIONADO? — /api/renovation (bajo demanda, no cada 30 s)
+// ══════════════════════════════════════════════════════════
+
+const RENO_SUMMARY = {
+  Bajo:  "Nada indica que haya sido reparado o reacondicionado.",
+  Medio: "Hay alguna señal que conviene revisar antes de fiarse.",
+  Alto:  "Varias señales apuntan a un equipo usado, reparado o reacondicionado.",
+};
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function fillList(id, items, emptyText) {
+  $(id).innerHTML = items && items.length
+    ? items.map((t) => `<li>${escapeHtml(t)}</li>`).join("")
+    : `<li class="muted">${emptyText}</li>`;
+}
+
+function setFact(id, text, state) {
+  const dd = $(id);
+  dd.textContent = text;
+  dd.classList.toggle("is-bad", state === "bad");
+  dd.classList.toggle("is-good", state === "good");
+}
+
+async function loadRenovation() {
+  const btn = $("reno-btn");
+  btn.classList.add("loading");
+  btn.disabled = true;
+  try {
+    const res  = await fetch(`/api/renovation/${encodeURIComponent(currentModel)}`);
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      $("reno-level").textContent = "—";
+      $("reno-level").dataset.level = "";
+      $("reno-summary").textContent = data.error || "No se pudo analizar el teléfono.";
+      return;
+    }
+
+    $("reno-level").textContent   = data.risk_level;
+    $("reno-level").dataset.level = data.risk_level;
+    const pending = (data.unverified || []).map((u) => u.split(":")[0].toLowerCase());
+    $("reno-summary").textContent = (RENO_SUMMARY[data.risk_level] ?? "") +
+      (pending.length ? ` Sin verificar: ${pending.join(", ")}.` : "");
+
+    // Solo se afirma "intacto" si el teléfono respondió 0; si no, es falta de datos
+    const knox = (raw, bad, good) =>
+      raw === "1" ? [bad, "bad"] : raw === "0" ? [good, "good"] : ["sin acceso", null];
+
+    setFact("reno-cycles", data.cycle_count ?? "sin acceso");
+    setFact("reno-warranty", ...knox(data.warranty_bit, "activado (1)", "intacto (0)"));
+    setFact("reno-fuse", ...knox(data.knox_fuse, "quemado (1)", "intacto (0)"));
+
+    // El número de serie se enmascara; completo en el tooltip
+    const serial = data.serial || "";
+    $("reno-serial").textContent = serial ? `•••• ${serial.slice(-4)}` : "—";
+    $("reno-serial").title = serial;
+
+    fillList("reno-risks", data.risk_factors, "Ninguna.");
+    fillList("reno-flags", data.green_flags, "Ninguna.");
+  } catch (_) {
+    $("reno-summary").textContent = "No se pudo conectar con el servidor.";
+  } finally {
+    btn.classList.remove("loading");
+    btn.disabled = false;
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -527,7 +572,10 @@ async function refreshAll() {
 $("model-select").addEventListener("change", async (e) => {
   currentModel = e.target.value;
   await refreshAll();
+  loadRenovation();
 });
+
+$("reno-btn").addEventListener("click", loadRenovation);
 
 // Manual refresh button
 $("refresh-btn").addEventListener("click", async () => {
@@ -556,8 +604,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sel  = $("model-select");
     if (!is_samsung) {
       const label = brand
-        ? (raw_model ? `📱 ${brand} ${raw_model}` : `📱 ${brand}`)
-        : "📱 Otro";
+        ? (raw_model ? `${brand} ${raw_model}` : brand)
+        : "Otro teléfono";
       chip.textContent = label;
       chip.classList.remove("hidden");
       sel.classList.add("hidden");
@@ -566,4 +614,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await refreshAll();
   startRefresh();
+  loadRenovation();
 });
