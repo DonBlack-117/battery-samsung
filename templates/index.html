@@ -6,13 +6,12 @@
     <title>Battery-Sam · salud de batería</title>
     <meta name="description" content="Salud, temperatura y degradación de la batería de tu Samsung, leídas por ADB." />
     <meta name="theme-color" content="#0F1113" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="preload" href="{{ url_for('static', path='vendor/fonts/geist.woff2') }}" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}" />
+    <script src="{{ url_for('static', path='vendor/chart.umd.min.js') }}" defer></script>
+    <script type="module" src="{{ url_for('static', path='js/main.js') }}"></script>
   </head>
-  <body>
+  <body data-refresh-ms="{{ refresh_ms }}" data-default-model="{{ default_model }}">
     <a class="skip" href="#contenido">Saltar al contenido</a>
     <div class="grain" aria-hidden="true"></div>
 
@@ -30,16 +29,16 @@
 
         <div class="topbar-controls">
           <label class="sr-only" for="model-select">Modelo del teléfono</label>
-          <select id="model-select" class="control select">
+          <select id="model-select" class="control select" data-testid="model-select">
             {% for m in modelos %}
-            <option value="{{ m }}">{{ m }}</option>
+            <option value="{{ m }}"{% if m == default_model %} selected{% endif %}>{{ m }}</option>
             {% endfor %}
           </select>
-          <div id="device-chip" class="control chip hidden"></div>
-          <div id="live-badge" class="live" title="Se actualiza cada 30 s">
+          <div id="device-chip" class="control chip hidden" data-testid="device-chip"></div>
+          <div id="live-badge" class="live" title="Se actualiza sola mientras la pestaña está visible">
             <span class="live-dot"></span>en vivo
           </div>
-          <button id="refresh-btn" class="control btn">
+          <button id="refresh-btn" class="control btn" type="button" data-testid="refresh-btn">
             <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 11a8 8 0 10-2.3 5.7M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -50,11 +49,10 @@
     </header>
 
     <!-- ── Aviso de error ─────────────────────────────────────── -->
-    <div id="error-banner" class="notice hidden" role="alert">
+    <div id="error-banner" class="notice hidden" role="alert" data-testid="error-banner">
       <span class="notice-dot" aria-hidden="true"></span>
       <span id="error-message">No se detectó el teléfono.</span>
-      <button class="notice-close" aria-label="Cerrar aviso"
-        onclick="document.getElementById('error-banner').classList.add('hidden')">Cerrar</button>
+      <button id="error-close" class="notice-close" type="button" aria-label="Cerrar aviso">Cerrar</button>
     </div>
 
     <main id="contenido" class="page">
@@ -70,23 +68,20 @@
                 <circle cx="110" cy="110" r="102" pathLength="100" stroke-dasharray="0.4 9.6" />
               </g>
               <circle cx="110" cy="110" r="88" class="gauge-track" />
-              <!-- se conserva por compatibilidad con app.js; no se dibuja -->
-              <circle cx="110" cy="110" r="88" id="gauge-arc-glow" class="gauge-arc-glow"
-                stroke-dasharray="552.92" stroke-dashoffset="552.92" transform="rotate(-90 110 110)" />
               <circle cx="110" cy="110" r="88" id="gauge-arc" class="gauge-arc"
                 stroke-dasharray="552.92" stroke-dashoffset="552.92" transform="rotate(-90 110 110)" />
             </svg>
             <div class="gauge-center">
               <div class="gauge-kicker">salud</div>
-              <div id="gauge-pct" class="gauge-pct">—</div>
-              <div id="gauge-label" class="gauge-label">Sin datos</div>
+              <div id="gauge-pct" class="gauge-pct" data-testid="gauge-pct">—</div>
+              <div id="gauge-label" class="gauge-label" data-testid="gauge-label">Sin datos</div>
             </div>
           </div>
 
           <dl class="gauge-facts">
             <div>
               <dt>Capacidad real</dt>
-              <dd id="gauge-mah">— mAh</dd>
+              <dd id="gauge-mah" data-testid="gauge-mah">— mAh</dd>
             </div>
             <div>
               <dt>De fábrica</dt>
@@ -97,12 +92,13 @@
               <dd id="gauge-method" class="muted">—</dd>
             </div>
           </dl>
+          <p id="gauge-note" class="gauge-note hidden" data-testid="gauge-note"></p>
         </div>
 
         <div class="readout" aria-label="Métricas">
           <div class="metric metric-wide" id="mc-level">
             <span class="metric-label">Carga</span>
-            <span class="metric-line"><span id="m-level" class="metric-value">—</span><span class="metric-unit">%</span></span>
+            <span class="metric-line"><span id="m-level" class="metric-value" data-testid="m-level">—</span><span class="metric-unit">%</span></span>
             <div class="level-bar"><div id="level-bar-fill" class="level-bar-fill" style="width:0%"></div></div>
           </div>
           <div class="metric" id="mc-status">
@@ -111,7 +107,7 @@
           </div>
           <div class="metric" id="mc-temp">
             <span class="metric-label">Temperatura</span>
-            <span class="metric-line"><span id="m-temp" class="metric-value">—</span><span class="metric-unit">°C</span></span>
+            <span class="metric-line"><span id="m-temp" class="metric-value" data-testid="m-temp">—</span><span class="metric-unit">°C</span></span>
           </div>
           <div class="metric" id="mc-voltage">
             <span class="metric-label">Voltaje</span>
@@ -132,19 +128,26 @@
       <section class="panel chart-panel" aria-labelledby="t-sesion">
         <div class="panel-head">
           <div>
-            <h2 id="t-sesion" class="panel-title">Esta sesión</h2>
-            <p id="chart-subtitle" class="panel-sub">Esperando la primera lectura…</p>
+            <h2 id="t-sesion" class="panel-title">Lecturas</h2>
+            <p id="chart-subtitle" class="panel-sub" data-testid="chart-subtitle">Esperando la primera lectura…</p>
           </div>
-          <div id="realtime-badge" class="legend">
-            <span><i class="swatch swatch-health"></i>salud</span>
-            <span><i class="swatch swatch-level"></i>carga</span>
+          <div class="chart-tools">
+            <div class="tabs" role="tablist" aria-label="Periodo de la gráfica">
+              <button class="tab" role="tab" type="button" aria-selected="true" data-range="session" data-testid="tab-session">Esta sesión</button>
+              <button class="tab" role="tab" type="button" aria-selected="false" data-range="30" data-testid="tab-30">30 días</button>
+              <button class="tab" role="tab" type="button" aria-selected="false" data-range="365" data-testid="tab-365">1 año</button>
+            </div>
+            <div id="realtime-badge" class="legend">
+              <span><i class="swatch swatch-health"></i>salud</span>
+              <span><i class="swatch swatch-level"></i>carga</span>
+            </div>
           </div>
         </div>
         <div class="chart-wrap">
-          <canvas id="health-chart" aria-label="Salud y carga durante esta sesión" role="img"></canvas>
-          <div id="chart-empty" class="chart-empty hidden">
+          <canvas id="health-chart" aria-label="Salud y carga" role="img" data-testid="health-chart"></canvas>
+          <div id="chart-empty" class="chart-empty hidden" data-testid="chart-empty">
             <p class="chart-empty-title">Todavía no hay lecturas.</p>
-            <p class="muted">Conecta el teléfono por USB; cada lectura se guarda sola cada 30 s.</p>
+            <p id="chart-empty-text" class="muted">Conecta el teléfono por USB. El historial guarda una lectura cada 10 min.</p>
           </div>
         </div>
       </section>
@@ -156,7 +159,7 @@
             <h2 id="t-reno" class="panel-title">¿Es reacondicionado?</h2>
             <p class="panel-sub">Ciclos de carga, Knox y salud frente a lo que dice el vendedor.</p>
           </div>
-          <button id="reno-btn" class="control btn" type="button">
+          <button id="reno-btn" class="control btn" type="button" data-testid="reno-btn">
             <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 11a8 8 0 10-2.3 5.7M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -167,8 +170,8 @@
         <div class="reno-body">
           <div class="reno-verdict">
             <span class="metric-label">Riesgo</span>
-            <span id="reno-level" class="reno-level" data-level="">—</span>
-            <p id="reno-summary" class="reno-summary muted">Conecta el teléfono y pulsa Analizar.</p>
+            <span id="reno-level" class="reno-level" data-level="" data-testid="reno-level">—</span>
+            <p id="reno-summary" class="reno-summary muted" data-testid="reno-summary">Conecta el teléfono y pulsa Analizar.</p>
           </div>
 
           <dl class="kv reno-facts">
@@ -181,7 +184,7 @@
           <div class="reno-lists">
             <div>
               <h3 class="reno-list-title">Señales de alerta</h3>
-              <ul id="reno-risks" class="reno-list reno-list-risk"><li class="muted">—</li></ul>
+              <ul id="reno-risks" class="reno-list reno-list-risk" data-testid="reno-risks"><li class="muted">—</li></ul>
             </div>
             <div>
               <h3 class="reno-list-title">A favor</h3>
@@ -196,7 +199,7 @@
         <div class="panel">
           <h3 class="panel-title">Historial</h3>
           <dl class="kv">
-            <div><dt>Lecturas guardadas</dt><dd id="s-total">—</dd></div>
+            <div><dt>Lecturas guardadas</dt><dd id="s-total" data-testid="s-total">—</dd></div>
             <div><dt>Primera lectura</dt><dd id="s-first-date">—</dd></div>
             <div><dt>Salud al inicio</dt><dd id="s-first-health">—</dd></div>
             <div><dt>Salud ahora</dt><dd id="s-last-health">—</dd></div>
@@ -207,9 +210,10 @@
         <div class="panel">
           <h3 class="panel-title">Degradación</h3>
           <dl class="kv">
-            <div><dt>Por mes</dt><dd id="s-monthly">—</dd></div>
-            <div><dt>Hasta llegar a 80 %</dt><dd id="s-to-80">—</dd></div>
+            <div><dt>Por mes</dt><dd id="s-monthly" data-testid="s-monthly">—</dd></div>
+            <div><dt>Hasta llegar a 80 %</dt><dd id="s-to-80" data-testid="s-to-80">—</dd></div>
           </dl>
+          <p id="trend-note" class="trend-note hidden" data-testid="trend-note"></p>
           <div id="projection-wrap" class="projection hidden">
             <div class="proj-labels">
               <span id="proj-current-label">—</span>
@@ -222,7 +226,7 @@
 
         <div class="panel">
           <h3 class="panel-title">Alertas</h3>
-          <div id="alerts-list" class="alerts" aria-live="polite">
+          <div id="alerts-list" class="alerts" aria-live="polite" data-testid="alerts-list">
             <p class="no-alerts">Sin alertas.</p>
           </div>
         </div>
@@ -231,9 +235,9 @@
 
     <footer class="footer">
       <span id="last-update">Sin lecturas todavía</span>
-      <span id="status-dot" class="status-dot status-unknown">sin conexión</span>
+      <a id="export-link" class="muted" href="/api/export.csv" data-testid="export-link">Exportar CSV</a>
+      <span id="status-dot" class="status-dot status-unknown" data-testid="status-dot">sin conexión</span>
     </footer>
 
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
   </body>
 </html>
