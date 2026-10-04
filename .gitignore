@@ -29,3 +29,13 @@ desktop.ini
 
 # Logs
 *.log
+
+# Herramientas locales del editor/asistente (no forman parte del proyecto)
+.agents/
+.claude/
+CLAUDE.md
+skills-lock.json
+
+# Pruebas en navegador
+test-results/
+playwright-report/
