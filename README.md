@@ -28,8 +28,8 @@ Battery health dashboard for Samsung Android phones. It reads the phone over USB
 ## Installation
 
 ```bash
-git clone https://github.com/DonBlack-117/battery-samung.git
-cd battery-samung
+git clone https://github.com/DonBlack-117/battery-samsung.git
+cd battery-samsung
 python -m venv .venv
 .venv/bin/pip install -r requirements.txt      # Windows: .venv\Scripts\pip
 ```

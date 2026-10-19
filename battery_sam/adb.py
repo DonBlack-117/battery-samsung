@@ -1,7 +1,6 @@
 """Cliente ADB: una sola llamada a `adb shell` por lectura."""
 
 import platform
-import shutil
 import subprocess
 import threading
 from pathlib import Path
@@ -50,9 +49,6 @@ def resolve_adb() -> str:
     if platform.system() != "Windows":
         return "adb"
     exe = _BUNDLED_DIR / "adb.exe"
-    compiled = _BUNDLED_DIR / "compiled" / "adb.exe"
-    if not exe.exists() and compiled.exists():
-        shutil.copy2(compiled, exe)
     return str(exe) if exe.exists() else "adb"
 
 
