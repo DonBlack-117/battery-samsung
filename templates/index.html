@@ -6,6 +6,10 @@
     <title>Battery-Sam · salud de batería</title>
     <meta name="description" content="Salud, temperatura y degradación de la batería de tu Samsung, leídas por ADB." />
     <meta name="theme-color" content="#0F1113" />
+    <link rel="icon" href="{{ url_for('static', path='icons/favicon.ico') }}" sizes="any" />
+    <link rel="icon" href="{{ url_for('static', path='icons/favicon.svg') }}" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="{{ url_for('static', path='icons/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', path='icons/site.webmanifest') }}" />
     <link rel="preload" href="{{ url_for('static', path='vendor/fonts/geist.woff2') }}" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}" />
     <script src="{{ url_for('static', path='vendor/chart.umd.min.js') }}" defer></script>
@@ -19,10 +23,12 @@
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="7" width="16" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
-            <rect x="19.5" y="10" width="1.8" height="4" rx=".6" fill="currentColor"/>
-            <rect x="5.5" y="9.5" width="8" height="5" rx="1" fill="currentColor"/>
+          <!-- Logo: logo/kit/simbolo-oscuro.svg, recortado al dibujo -->
+          <svg class="brand-mark" viewBox="20 14 220 220" aria-hidden="true">
+            <path fill="currentColor" fill-rule="evenodd" d="M180 108A76 76 0 1 1 28 108A76 76 0 1 1 180 108ZM155.5 108A51.5 51.5 0 1 0 52.5 108A51.5 51.5 0 1 0 155.5 108Z"/>
+            <rect fill="currentColor" x="89" y="19" width="30" height="21" rx="6"/>
+            <path class="brand-level" d="M69 96H139A37 37 0 1 1 69 96Z"/>
+            <rect fill="currentColor" x="-15" y="70" width="30" height="90" rx="10" transform="translate(104 108) rotate(-45)"/>
           </svg>
           <span class="brand-name">Battery-Sam</span>
         </div>
@@ -149,6 +155,40 @@
             <p class="chart-empty-title">Todavía no hay lecturas.</p>
             <p id="chart-empty-text" class="muted">Conecta el teléfono por USB. El historial guarda una lectura cada 10 min.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- ── Sesiones de carga ──────────────────────────────── -->
+      <section class="panel sessions" aria-labelledby="t-sessions">
+        <div class="panel-head">
+          <div>
+            <h2 id="t-sessions" class="panel-title">Sesiones de carga</h2>
+            <p class="panel-sub">Una fila por carga que empieza en 20 % o menos. Se compara una por mes: la que llega a 100 % con el rango más amplio («cuenta»).</p>
+          </div>
+        </div>
+        <p id="session-live" class="session-live hidden" aria-live="polite" data-testid="session-live"></p>
+        <dl class="kv sessions-kv">
+          <div><dt>Salud en la última carga de referencia</dt><dd id="ss-last" data-testid="ss-last">—</dd></div>
+          <div><dt>Cargas de referencia</dt><dd id="ss-total">0</dd></div>
+        </dl>
+        <div class="table-wrap">
+          <table class="sessions-table" data-testid="sessions-table">
+            <thead>
+              <tr>
+                <th scope="col">Inicio</th>
+                <th scope="col">Rango</th>
+                <th scope="col">Entró</th>
+                <th scope="col">Capacidad</th>
+                <th scope="col">Salud</th>
+                <th scope="col">Temp. máx.</th>
+                <th scope="col">Duración</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-body">
+              <tr><td colspan="8" class="muted">Todavía no hay sesiones. Conecta el teléfono por USB cuando empieces a cargar (con 20 % o menos).</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 

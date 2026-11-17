@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battery-Sam · guía del logo</title>
+<style>
+  :root { --bg:#F4F5F6; --text:#15181B; --soft:#4A535B; --line:#DADDE0; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.55 system-ui, sans-serif; padding:40px 16px 64px; }
+  main { max-width:1040px; margin:0 auto; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  h2 { font-size:15px; margin:36px 0 12px; text-transform:uppercase; letter-spacing:.06em; color:var(--soft); }
+  p { margin:0 0 10px; color:var(--soft); max-width:70ch; }
+  .row { display:flex; flex-wrap:wrap; gap:16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; display:grid; place-items:center; min-height:150px; }
+  .card.dark { background:#15181B; border-color:#15181B; }
+  .card small { display:block; margin-top:10px; color:var(--soft); font-size:12px; }
+  .card.dark small { color:#AAB2B9; }
+  img { display:block; }
+  .swatch { width:220px; border-radius:12px; overflow:hidden; border:1px solid var(--line); background:#fff; }
+  .swatch div:first-child { height:90px; }
+  .swatch div:last-child { padding:10px 12px; font-size:12px; line-height:1.6; }
+  .swatch b { font-size:13px; }
+  .clear { position:relative; padding:38px; border:1px dashed #9AA3AB; background:#fff; border-radius:8px; }
+  .clear::after { content:"x = alto del polo"; position:absolute; bottom:6px; right:10px; font-size:11px; color:var(--soft); }
+  table { border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  td, th { padding:8px 14px; border-bottom:1px solid var(--line); text-align:left; font-size:13px; }
+  .bad { position:relative; }
+  .bad::before { content:"✕"; position:absolute; top:8px; left:12px; color:#C0392B; font-weight:700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Battery-Sam · guía del logo</h1>
+  <p>Una lupa con el polo de una pila arriba y el lente lleno como nivel de carga: revisar la batería por dentro. Wordmark en Geist SemiBold (SIL Open Font License), convertido a trazados.</p>
+
+  <h2>Versiones</h2>
+  <div class="row">
+    <div class="card"><img src="horizontal.svg" height="90" alt="Logo horizontal"><small>Horizontal · principal</small></div>
+    <div class="card dark"><img src="horizontal-oscuro.svg" height="90" alt="Logo horizontal sobre oscuro"><small>Horizontal · fondo oscuro</small></div>
+    <div class="card"><img src="vertical.svg" height="150" alt="Logo vertical"><small>Vertical</small></div>
+    <div class="card"><img src="simbolo.svg" height="110" alt="Símbolo"><small>Símbolo</small></div>
+    <div class="card"><img src="icono-app.svg" height="110" alt="Icono de app"><small>Icono de app</small></div>
+  </div>
+
+  <h2>Una tinta</h2>
+  <div class="row">
+    <div class="card"><img src="horizontal-negro.svg" height="70" alt=""><small>Negro</small></div>
+    <div class="card dark"><img src="horizontal-blanco.svg" height="70" alt=""><small>Blanco (trazo adelgazado)</small></div>
+  </div>
+
+  <h2>Color</h2>
+  <div class="row">
+    <div class="swatch"><div style="background:#15181B"></div><div><b>Grafito</b><br>#15181B · RGB 21 24 27<br>CMYK 22 11 0 89<br>Anillo, mango y texto sobre claro</div></div>
+    <div class="swatch"><div style="background:#3D6C8E"></div><div><b>Azul profundo</b><br>#3D6C8E · RGB 61 108 142<br>CMYK 57 24 0 44<br>Nivel sobre claro (5.6:1 con blanco)</div></div>
+    <div class="swatch"><div style="background:#A3C4DC"></div><div><b>Azul acero</b><br>#A3C4DC · RGB 163 196 220<br>CMYK 26 11 0 14<br>Nivel y acento sobre grafito (9.8:1)</div></div>
+    <div class="swatch"><div style="background:#E6E9EC"></div><div><b>Niebla</b><br>#E6E9EC · RGB 230 233 236<br>CMYK 3 1 0 7<br>Anillo y texto sobre grafito</div></div>
+  </div>
+  <p style="margin-top:12px">El azul acero no va sobre blanco (1.8:1): ahí se usa el azul profundo. Los CMYK son aproximados; si se imprime, confirmar con la imprenta.</p>
+
+  <h2>Área de protección y tamaños mínimos</h2>
+  <div class="row" style="align-items:center">
+    <div class="clear"><img src="horizontal.svg" height="80" alt=""></div>
+    <table>
+      <tr><th>Versión</th><th>Mínimo</th></tr>
+      <tr><td>Horizontal</td><td>24 px de alto · 8 mm impreso</td></tr>
+      <tr><td>Vertical</td><td>48 px de alto · 15 mm</td></tr>
+      <tr><td>Símbolo</td><td>24 px · 6 mm</td></tr>
+      <tr><td>Menos de 24 px</td><td>favicon.svg (versión chica)</td></tr>
+    </table>
+  </div>
+  <p style="margin-top:12px">Alrededor del logo queda libre al menos el alto del polo (x) por cada lado.</p>
+
+  <h2>Usos incorrectos</h2>
+  <div class="row">
+    <div class="card bad"><img src="simbolo.svg" height="90" style="transform:scaleX(1.4)" alt=""><small>No deformar</small></div>
+    <div class="card bad"><img src="simbolo.svg" height="90" style="transform:rotate(30deg)" alt=""><small>No girar</small></div>
+    <div class="card bad" style="background:#A3C4DC"><img src="simbolo.svg" height="90" alt=""><small>No sobre azul acero</small></div>
+    <div class="card bad"><img src="simbolo.svg" height="90" style="filter:drop-shadow(4px 6px 4px rgba(0,0,0,.5))" alt=""><small>Sin sombras ni efectos</small></div>
+    <div class="card bad"><img src="simbolo.svg" height="90" style="filter:hue-rotate(110deg)" alt=""><small>No cambiar colores</small></div>
+  </div>
+</main>
+</body>
+</html>

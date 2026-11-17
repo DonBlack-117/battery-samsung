@@ -9,12 +9,18 @@ export function renderStats(stats) {
   $("s-first-date").textContent = stats.first_date ?? "Sin datos";
   $("s-first-health").textContent = pct(stats.first_health);
   $("s-last-health").textContent = pct(stats.last_health);
-  $("s-max-temp").textContent = stats.max_temp_c != null ? `${stats.max_temp_c} °C` : "—";
+  $("s-max-temp").textContent =
+    stats.max_temp_c != null ? `${stats.max_temp_c} °C` : "—";
 
   const monthly = stats.monthly_degradation;
-  $("s-monthly").textContent = monthly != null
-    ? `${monthly >= 0 ? "−" : "+"}${Math.abs(monthly).toFixed(3)}% / mes`
-    : "—";
+  $("s-monthly").textContent =
+    monthly != null
+      ? `${monthly >= 0 ? "−" : "+"}${Math.abs(monthly).toFixed(3)}% / mes`
+      : "—";
+  $("s-monthly").title =
+    stats.trend_source === "sessions"
+      ? `Calculada con ${stats.sessions_with_health} cargas completas`
+      : "";
 
   const note = $("trend-note");
   note.textContent = stats.trend_note ?? "";
@@ -23,7 +29,8 @@ export function renderStats(stats) {
   const wrap = $("projection-wrap");
   if (stats.months_to_80 != null) {
     const months = stats.months_to_80;
-    $("s-to-80").textContent = months >= 12 ? `~${(months / 12).toFixed(1)} años` : `~${months} meses`;
+    $("s-to-80").textContent =
+      months >= 12 ? `~${(months / 12).toFixed(1)} años` : `~${months} meses`;
 
     const first = stats.first_health ?? 100;
     const current = stats.last_health ?? 100;
@@ -34,6 +41,7 @@ export function renderStats(stats) {
     wrap.classList.remove("hidden");
   } else {
     wrap.classList.add("hidden");
-    $("s-to-80").textContent = monthly != null && monthly <= 0 ? "no está bajando" : "—";
+    $("s-to-80").textContent =
+      monthly != null && monthly <= 0 ? "no está bajando" : "—";
   }
 }

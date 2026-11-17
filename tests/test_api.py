@@ -8,7 +8,8 @@ from battery_sam.web import create_app
 
 @pytest.fixture
 def client(service):
-    return TestClient(create_app(Settings(), service))
+    # Host real del servidor local: TrustedHostMiddleware rechaza «testserver»
+    return TestClient(create_app(Settings(), service), base_url="http://127.0.0.1:5000")
 
 
 def test_index_renders(client):
@@ -85,3 +86,26 @@ def test_save_false_does_not_store(client):
 def test_renovation_uses_one_shell_call(client, shell):
     client.get("/api/renovation")
     assert shell.calls == 1
+
+
+def test_sessions_endpoint_and_current_session(client, shell):
+    # status 2 = cargando: la lectura abre una sesión
+    shell.values["dumpsys"] = (
+        shell.values["dumpsys"].replace("status: 4", "status: 2").replace(
+            "level: 80", "level: 15"
+        )
+    )
+    body = client.get("/api/current", params={"model": "S24 Ultra"}).json()
+    assert body["session"]["status"] == "open"
+    assert body["session"]["start_level"] == 15
+    assert body["session"]["counted"] is False
+
+    data = client.get("/api/sessions", params={"model": "S24 Ultra"}).json()
+    assert len(data["sessions"]) == 1
+    assert data["summary"]["total"] == 0
+    assert data["summary"]["counted_ids"] == []
+    assert "start_counter_uah" not in data["sessions"][0]
+
+    stats = client.get("/api/stats", params={"model": "S24 Ultra"}).json()
+    assert stats["sessions_with_health"] == 0
+    assert stats["trend_source"] is None

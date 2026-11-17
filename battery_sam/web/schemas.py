@@ -29,6 +29,42 @@ class DeviceResponse(BaseModel):
     is_samsung: bool
 
 
+class ChargeSessionOut(BaseModel):
+    id: int
+    model: str
+    started_at: str
+    updated_at: str
+    ended_at: str | None
+    status: str
+    end_reason: str | None
+    design_mah: int
+    start_level: int
+    end_level: int
+    span: int
+    added_mah: int
+    capacity_mah: int | None
+    health_pct: float | None
+    health_note: str | None
+    max_temp_c: float
+    duration_min: int
+    readings: int
+    # Carga de referencia del mes (entra en la comparación)
+    counted: bool
+
+
+class SessionSummary(BaseModel):
+    total: int
+    last_health: float | None
+    monthly_degradation: float | None
+    months_to_80: float | None
+    counted_ids: list[int]
+
+
+class SessionsResponse(BaseModel):
+    sessions: list[ChargeSessionOut]
+    summary: SessionSummary
+
+
 class CurrentResponse(BaseModel):
     model: str
     design_mah: int
@@ -50,7 +86,11 @@ class CurrentResponse(BaseModel):
     status_name: str
     protect_battery: bool | None
     protect_note: str | None
+    needs_check: bool
+    overridden: bool
+    save_error: str | None
     saved: bool
+    session: ChargeSessionOut | None
 
 
 class RenovationResponse(BaseModel):
@@ -64,7 +104,7 @@ class RenovationResponse(BaseModel):
     knox_fuse_triggered: bool
     warranty_bit: str | None
     knox_fuse: str | None
-    serial: str | None
+    serial_masked: str | None
     build_fingerprint: str | None
 
 
@@ -86,3 +126,6 @@ class StatsResponse(BaseModel):
     monthly_degradation: float | None
     months_to_80: float | None
     trend_note: str | None
+    trend_source: str | None
+    sessions_with_health: int
+    session_health: float | None

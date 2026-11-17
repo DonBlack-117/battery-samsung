@@ -22,13 +22,14 @@ function renderGauge(data) {
     arc.style.strokeDashoffset = CIRCUMF;
     $("gauge-pct").textContent = "—";
     delete $("gauge-pct").dataset.rawValue;
-    $("gauge-label").textContent = "Sin datos";
-    $("gauge-label").style.color = "";
+    $("gauge-label").textContent = data.health_label ?? "Sin datos";
+    $("gauge-label").style.color = data.overridden ? COLORS.bad : "";
     note.textContent = data.discarded_reason ?? "";
     note.classList.toggle("hidden", !data.discarded_reason);
   }
 
-  $("gauge-mah").textContent = data.capacity_mah != null ? `${data.capacity_mah} mAh` : "— mAh";
+  $("gauge-mah").textContent =
+    data.capacity_mah != null ? `${data.capacity_mah} mAh` : "— mAh";
   $("gauge-design").textContent = `${data.design_mah} mAh`;
   const method = $("gauge-method");
   method.textContent = METHOD_LABELS[data.method] ?? "—";
@@ -40,7 +41,8 @@ function renderMetrics(data) {
   animateNumber($("m-level"), level, 0);
   const fill = $("level-bar-fill");
   fill.style.width = `${level}%`;
-  fill.style.backgroundColor = level > 50 ? COLORS.accent : level > 20 ? COLORS.fair : COLORS.bad;
+  fill.style.backgroundColor =
+    level > 50 ? COLORS.accent : level > 20 ? COLORS.fair : COLORS.bad;
 
   $("m-status").textContent = data.status_name ?? "—";
 
@@ -59,16 +61,38 @@ function renderMetrics(data) {
 function renderAlerts(data) {
   const alerts = [];
   if (data.temp_c > 40)
-    alerts.push(["danger", `Temperatura muy alta: ${data.temp_c} °C. Deja de cargar y déjalo enfriar.`]);
+    alerts.push([
+      "danger",
+      `Temperatura muy alta: ${data.temp_c} °C. Deja de cargar y déjalo enfriar.`,
+    ]);
   else if (data.temp_c > 35)
     alerts.push(["warn", `Temperatura alta: ${data.temp_c} °C.`]);
 
   if (data.health_pct != null && data.health_pct < 60)
-    alerts.push(["danger", `Salud en ${data.health_pct} %. Conviene cambiar la batería.`]);
+    alerts.push([
+      "danger",
+      `Salud en ${data.health_pct} %. Conviene cambiar la batería.`,
+    ]);
   else if (data.health_pct != null && data.health_pct < 80)
     alerts.push(["warn", `Salud por debajo del 80 % (${data.health_pct} %).`]);
 
+  if (data.overridden)
+    alerts.push([
+      "danger",
+      "Los valores de la batería están fijados a mano (dumpsys battery set). Esta lectura no es real.",
+    ]);
+  if (data.needs_check)
+    alerts.push([
+      "warn",
+      `Salud muy baja (${data.health_pct} %): puede ser una batería muy gastada o un error de medición. No se guarda en el historial.`,
+    ]);
+  if (data.save_error) alerts.push(["warn", data.save_error]);
   if (data.protect_note) alerts.push(["warn", data.protect_note]);
+  if (data.session?.status === "open" && data.protect_battery)
+    alerts.push([
+      "warn",
+      "«Proteger batería» está activa: la carga no pasará de 80–85 %. Desactívala para cargar hasta 100 %.",
+    ]);
 
   const list = $("alerts-list");
   list.replaceChildren();
@@ -96,5 +120,6 @@ export function renderReading(data) {
   renderGauge(data);
   renderMetrics(data);
   renderAlerts(data);
-  $("last-update").textContent = `Última lectura: ${new Date().toLocaleTimeString("es-MX")}`;
+  $("last-update").textContent =
+    `Última lectura: ${new Date().toLocaleTimeString("es-MX")}`;
 }

@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 
-from .adb import Shell
+from .adb import BadReadingError, Shell
 from .catalog import DEVICE_CODE_MAP, SAMSUNG_CAPACITIES
 
 _PS = "/sys/class/power_supply/battery"
@@ -49,6 +49,8 @@ class BatterySnapshot:
     health_code: int
     status_code: int
     protect_battery: bool | None  # None si el ajuste no se pudo leer
+    # `dumpsys battery set ...` congela los valores reales («UPDATES STOPPED»)
+    overridden: bool = False
 
 
 @dataclass(frozen=True)
@@ -59,13 +61,20 @@ class DeviceInfo:
     is_samsung: bool
 
 
+_INT = re.compile(r"-?[0-9]+")
+
+
 def _to_int(value: str | None, default: int | None = None) -> int | None:
     if value is None:
         return default
     value = value.strip()
-    if value.lstrip("-").isdigit():
-        return int(value)
-    return default
+    # Solo dígitos ASCII: «--5» o «²» pasan isdigit() pero int() falla
+    return int(value) if _INT.fullmatch(value) else default
+
+
+def is_overridden(dumpsys: str) -> bool:
+    """`dumpsys battery set/unplug` deja «UPDATES STOPPED» hasta un `reset`."""
+    return "UPDATES STOPPED" in dumpsys.upper()
 
 
 def parse_dumpsys_battery(text: str) -> dict[str, str]:
@@ -84,7 +93,14 @@ def read_battery(shell: Shell) -> BatterySnapshot:
 
 
 def parse_battery(raw: dict[str, str]) -> BatterySnapshot:
-    batt = parse_dumpsys_battery(raw.get("dumpsys", ""))
+    dumpsys = raw.get("dumpsys", "")
+    batt = parse_dumpsys_battery(dumpsys)
+    # Sin nivel la lectura no vale: mostrar 0 % y 0 °C como si fuera real engaña
+    if _to_int(batt.get("level")) is None:
+        raise BadReadingError(
+            "El teléfono no devolvió el estado de la batería (dumpsys battery vacío). "
+            "Desbloquéalo y vuelve a intentar."
+        )
 
     charge_full = (
         _to_int(raw.get("charge_full"))
@@ -103,12 +119,15 @@ def parse_battery(raw: dict[str, str]) -> BatterySnapshot:
         health_code=_to_int(batt.get("health"), 1),
         status_code=_to_int(batt.get("status"), 1),
         protect_battery={"1": True, "0": False}.get(protect),
+        overridden=is_overridden(dumpsys),
     )
 
 
 def match_model(marketname: str | None, model_code: str | None) -> str | None:
     if marketname:
-        name = re.sub(r"^(Samsung\s+)?Galaxy\s+", "", marketname.strip(), flags=re.IGNORECASE)
+        name = re.sub(
+            r"^(Samsung\s+)?Galaxy\s+", "", marketname.strip(), flags=re.IGNORECASE
+        )
         if name in SAMSUNG_CAPACITIES:
             return name
     if model_code:

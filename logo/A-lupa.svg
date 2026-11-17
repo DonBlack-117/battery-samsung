@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <path fill="#000" fill-rule="evenodd" d="M188 112A76 76 0 1 1 36 112A76 76 0 1 1 188 112Z M162 112A50 50 0 1 0 62 112A50 50 0 1 0 162 112Z"/>
+  <rect fill="#000" x="96" y="20" width="32" height="22" rx="6"/>
+  <path fill="#000" d="M75.94 100H148.06A38 38 0 1 1 75.94 100Z"/>
+  <rect fill="#000" x="-16" y="70" width="32" height="90" rx="10" transform="translate(112 112) rotate(-45)"/>
+</svg>

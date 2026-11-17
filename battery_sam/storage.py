@@ -29,28 +29,32 @@ def now() -> datetime:
     return datetime.now().astimezone()
 
 
+@contextmanager
+def connect(path: Path):
+    """Conexión con transacción: confirma al salir o deshace si hay error."""
+    conn = sqlite3.connect(path, timeout=10)
+    conn.row_factory = sqlite3.Row
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
+
+
 class ReadingStore:
     def __init__(self, path: Path, min_interval_s: int = 600):
         self.path = Path(path)
         self.min_interval_s = min_interval_s
 
-    @contextmanager
     def _connect(self):
-        conn = sqlite3.connect(self.path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        try:
-            with conn:
-                yield conn
-        finally:
-            conn.close()
+        return connect(self.path)
 
     def init(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             # WAL: leer el historial no bloquea al que guarda
             conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS readings (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp       TEXT    NOT NULL,
@@ -64,14 +68,13 @@ class ReadingStore:
                     full_mah_est    REAL,
                     method          TEXT
                 )
-                """
-            )
+                """)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_readings_model_ts ON readings (modelo, timestamp)"
             )
             self._add_timezone(conn)
 
-    @staticmethod
+    @ staticmethod
     def _add_timezone(conn: sqlite3.Connection) -> None:
         """Las lecturas viejas se guardaron sin zona horaria (hora local)."""
         rows = conn.execute(
@@ -81,24 +84,25 @@ class ReadingStore:
         for row in rows:
             aware = datetime.fromisoformat(row["timestamp"]).astimezone()
             conn.execute(
-                "UPDATE readings SET timestamp = ? WHERE id = ?", (aware.isoformat(), row["id"])
+                "UPDATE readings SET timestamp = ? WHERE id = ?",
+                (aware.isoformat(), row["id"]),
             )
 
     def last_timestamp(self, model: str) -> datetime | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT timestamp AS ts FROM readings WHERE modelo = ? "
-                "ORDER BY julianday(timestamp) DESC LIMIT 1",
+                "SELECT timestamp AS ts FROM readings WHERE modelo = ? " "ORDER BY julianday(timestamp) DESC LIMIT 1",
                 (model,),
             ).fetchone()
         return datetime.fromisoformat(row["ts"]) if row and row["ts"] else None
 
     def save_if_due(self, reading: HealthReading) -> bool:
-        """Guarda la lectura si tiene salud y pasó el intervalo mínimo."""
-        if reading.health_pct is None:
+        """Guarda la lectura si tiene salud confiable y pasó el intervalo mínimo."""
+        if reading.health_pct is None or reading.needs_check or reading.overridden:
             return False
         last = self.last_timestamp(reading.model)
-        if last and (now() - last).total_seconds() < self.min_interval_s:
+        # Un intervalo negativo (reloj atrasado) cuenta como vencido
+        if last and 0 <= (now() - last).total_seconds() < self.min_interval_s:
             return False
         self.save(reading)
         return True
@@ -125,8 +129,7 @@ class ReadingStore:
         since = (now() - timedelta(days=days)).isoformat()
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT * FROM readings WHERE modelo = ? AND julianday(timestamp) > julianday(?) "
-                "ORDER BY julianday(timestamp)",
+                "SELECT * FROM readings WHERE modelo = ? AND julianday(timestamp) > julianday(?) " "ORDER BY julianday(timestamp)",
                 (model, since),
             ).fetchall()
         return [dict(r) for r in rows]
@@ -135,9 +138,7 @@ class ReadingStore:
         """Promedio de salud por día: suaviza el ruido de cada lectura."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT substr(timestamp, 1, 10) AS day, AVG(health_pct) AS health "
-                "FROM readings WHERE modelo = ? AND health_pct IS NOT NULL "
-                "GROUP BY day ORDER BY day",
+                "SELECT substr(timestamp, 1, 10) AS day, AVG(health_pct) AS health " "FROM readings WHERE modelo = ? AND health_pct IS NOT NULL " "GROUP BY day ORDER BY day",
                 (model,),
             ).fetchall()
         return [(r["day"], r["health"]) for r in rows]
@@ -145,10 +146,7 @@ class ReadingStore:
     def stats(self, model: str) -> dict:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT COUNT(*) AS total, MAX(temp_c) AS max_temp, "
-                "(SELECT timestamp FROM readings WHERE modelo = :m "
-                " ORDER BY julianday(timestamp) LIMIT 1) AS first_ts "
-                "FROM readings WHERE modelo = :m",
+                "SELECT COUNT(*) AS total, MAX(temp_c) AS max_temp, " "(SELECT timestamp FROM readings WHERE modelo = :m " " ORDER BY julianday(timestamp) LIMIT 1) AS first_ts " "FROM readings WHERE modelo = :m",
                 {"m": model},
             ).fetchone()
 
@@ -158,7 +156,9 @@ class ReadingStore:
             "first_date": None,
             "first_health": None,
             "last_health": None,
-            "max_temp_c": round(row["max_temp"], 1) if row["max_temp"] is not None else None,
+            "max_temp_c": round(row["max_temp"], 1) if row[
+                "max_temp"
+            ] is not None else None,
             "days_with_data": 0,
             "monthly_degradation": None,
             "months_to_80": None,
@@ -169,13 +169,15 @@ class ReadingStore:
             return result
 
         daily = self.daily_health(model)
-        result["first_date"] = datetime.fromisoformat(row["first_ts"]).strftime("%d/%m/%Y")
+        result["first_date"] = datetime.fromisoformat(row["first_ts"]).strftime(
+            "%d/%m/%Y"
+        )
         result["days_with_data"] = len(daily)
         if daily:
             result["first_health"] = round(daily[0][1], 1)
             result["last_health"] = round(daily[-1][1], 1)
 
-        slope = _slope_per_day(daily)
+        slope = slope_per_day(daily)
         if slope is None:
             result["trend_note"] = (
                 f"Hacen falta lecturas en al menos {MIN_DAYS_FOR_TREND} días "
@@ -191,7 +193,7 @@ class ReadingStore:
         return result
 
 
-def _slope_per_day(daily: list[tuple[str, float]]) -> float | None:
+def slope_per_day(daily: list[tuple[str, float]]) -> float | None:
     """Pendiente por mínimos cuadrados de la salud diaria (puntos % por día)."""
     if len(daily) < MIN_DAYS_FOR_TREND:
         return None

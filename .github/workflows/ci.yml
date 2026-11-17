@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Solo lectura: el job no publica nada
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

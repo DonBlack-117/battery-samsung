@@ -44,3 +44,61 @@ def test_unrecognized_model_is_not_assumed(monkeypatch, capsys):
 def test_watch_must_be_positive():
     with pytest.raises(SystemExit):
         cli.parse_args(["--watch", "-1"])
+
+
+def _dumpsys(level, status):
+    from tests.fakes import DUMPSYS_S24
+
+    counter = level * 48_000
+    return (
+        DUMPSYS_S24.replace("status: 4", f"status: {status}").replace("level: 80", f"level: {level}").replace(
+            "harge counter: 3984800", f"harge counter: {counter}"
+        )
+    )
+
+
+def test_session_mode_records_until_full(monkeypatch, capsys):
+    from tests.fakes import S24_ULTRA
+
+    steps = iter([(15, 2), (60, 2), (100, 5)])
+
+    class ChargingPhone(FakeShell):
+        def run_sections(self, sections):
+            if "dumpsys" in sections:
+                self.values["dumpsys"] = _dumpsys(*next(steps))
+            return super().run_sections(sections)
+
+    monkeypatch.setattr(
+        cli,
+        "AdbClient",
+        lambda **_: ChargingPhone({**S24_ULTRA, "protect_battery": "0"}),
+    )
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    monkeypatch.setattr(cli.console, "clear", lambda: None)
+    assert cli.main(["--sesion"]) == 0
+    assert "Sesión cerrada" in capsys.readouterr().out
+
+    assert cli.main(["--sesiones", "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    session = data["sessions"][0]
+    assert (session["start_level"], session["end_level"], session["status"]) == (
+        15,
+        100,
+        "complete",
+    )
+    assert session["health_pct"] == 96.0
+
+
+def test_session_mode_needs_charger(capsys):
+    assert cli.main(["--sesion"]) == 1
+    assert "no está cargando" in capsys.readouterr().out
+
+
+def test_session_mode_needs_low_start(monkeypatch, capsys):
+    from tests.fakes import S24_ULTRA
+
+    shell = FakeShell({**S24_ULTRA, "dumpsys": _dumpsys(60, 2)})
+    monkeypatch.setattr(cli, "AdbClient", lambda **_: shell)
+    monkeypatch.setattr(cli.console, "clear", lambda: None)
+    assert cli.main(["--sesion"]) == 1
+    assert "20 % o menos" in capsys.readouterr().out
