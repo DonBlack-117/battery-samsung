@@ -33,16 +33,15 @@ export function renderRenovation(data) {
   $("reno-level").textContent = data.risk_level;
   $("reno-level").dataset.level = data.risk_level;
   const pending = data.unverified.map((u) => u.split(":")[0].toLowerCase());
-  $("reno-summary").textContent = SUMMARY[data.risk_level] + (pending.length ? ` Sin verificar: ${pending.join(", ")}.` : "");
+  $("reno-summary").textContent =
+    SUMMARY[data.risk_level] + (pending.length ? ` Sin verificar: ${pending.join(", ")}.` : "");
 
   setFact("reno-cycles", data.cycle_count ?? "sin acceso");
   setFact("reno-warranty", ...knox(data.warranty_bit, "activado (1)", "intacto (0)"));
   setFact("reno-fuse", ...knox(data.knox_fuse, "quemado (1)", "intacto (0)"));
 
-  // El número de serie se enmascara; completo en el tooltip
-  const serial = data.serial ?? "";
-  $("reno-serial").textContent = serial ? `•••• ${serial.slice(-4)}` : "—";
-  $("reno-serial").title = serial;
+  // La API ya lo entrega enmascarado (últimos 4); el completo no sale del servidor
+  $("reno-serial").textContent = data.serial_masked ?? "—";
 
   fillList("reno-risks", data.risk_factors);
   fillList("reno-flags", data.green_flags);

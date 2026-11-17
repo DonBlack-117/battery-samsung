@@ -109,7 +109,10 @@ def test_changing_model_reloads(page: Page, app_url):
 
 def test_no_external_requests(page: Page, app_url):
     external = []
-    page.on("request", lambda r: external.append(r.url) if not r.url.startswith(app_url) else None)
+    page.on(
+        "request",
+        lambda r: external.append(r.url) if not r.url.startswith(app_url) else None,
+    )
     d = DashboardPage(page, app_url)
     d.goto()
     expect(d.gauge_pct).to_have_text("99.6%")
@@ -139,3 +142,18 @@ def test_unknown_samsung_model_is_not_saved(page: Page, app_url, fake_shell):
     with page.expect_response(lambda r: "/api/stats" in r.url):
         d.model_select.select_option("S24 Ultra")
     expect(d.total).to_have_text(str(int(before) + 1))
+
+
+def test_charge_session_panel(page: Page, app_url, fake_shell):
+    original = fake_shell.values["dumpsys"]
+    fake_shell.values["dumpsys"] = original.replace("status: 4", "status: 2").replace(
+        "level: 80", "level: 15"
+    )
+    try:
+        page.goto(app_url)
+        expect(page.get_by_test_id("session-live")).to_contain_text(
+            "Carga en curso: 15 → 15%"
+        )
+        expect(page.get_by_test_id("sessions-table")).to_contain_text("en curso")
+    finally:
+        fake_shell.values["dumpsys"] = original

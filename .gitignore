@@ -39,3 +39,10 @@ skills-lock.json
 # Pruebas en navegador
 test-results/
 playwright-report/
+
+# Pruebas del logo (se quedan en disco, fuera del repo)
+logo/prueba-v3.*
+logo/kit/prueba-final.*
+logo/renders/
+logo/concepto-*-v*.svg
+logo/conceptos-v*.*

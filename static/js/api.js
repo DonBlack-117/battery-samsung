@@ -14,12 +14,20 @@ async function getJson(path, params = {}) {
   try {
     res = await fetch(query ? `${path}?${query}` : path);
   } catch (_) {
-    throw new ApiError(0, "offline", "No se pudo conectar con el servidor. ¿Está corriendo Battery-Sam?");
+    throw new ApiError(
+      0,
+      "offline",
+      "No se pudo conectar con el servidor. ¿Está corriendo Battery-Sam?",
+    );
   }
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     const err = body?.error ?? {};
-    throw new ApiError(res.status, err.code ?? "http_error", err.message ?? `Error ${res.status} del servidor.`);
+    throw new ApiError(
+      res.status,
+      err.code ?? "http_error",
+      err.message ?? `Error ${res.status} del servidor.`,
+    );
   }
   return body;
 }
@@ -30,5 +38,6 @@ export const api = {
   renovation: (model) => getJson("/api/renovation", { model }),
   stats: (model) => getJson("/api/stats", { model }),
   history: (model, days) => getJson("/api/history", { model, days }),
+  sessions: (model) => getJson("/api/sessions", { model }),
   exportUrl: (model) => `/api/export.csv?${new URLSearchParams({ model })}`,
 };

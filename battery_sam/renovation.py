@@ -8,7 +8,16 @@ CYCLE_MEDIUM = 150
 CYCLE_LOW = 50
 
 
-def analyze_renovation_risk(indicators: dict, health_pct: float | None) -> dict:
+def mask_serial(serial: str | None) -> str | None:
+    """Solo los últimos 4 caracteres: la API no entrega el número completo."""
+    if not serial:
+        return None
+    return f"•••• {serial[-4:]}"
+
+
+def analyze_renovation_risk(
+    indicators: dict, health_pct: float | None, overridden: bool = False
+) -> dict:
     risk_factors: list[str] = []
     green_flags: list[str] = []
     unverified: list[str] = []
@@ -24,7 +33,9 @@ def analyze_renovation_risk(indicators: dict, health_pct: float | None) -> dict:
             f"Ciclos de carga muy altos: {cycles} (uso intensivo; {CYCLE_HIGH} o más es señal de alarma)"
         )
     elif cycles >= CYCLE_MEDIUM:
-        risk_factors.append(f"Ciclos de carga moderados: {cycles} (uso notable antes de esta compra)")
+        risk_factors.append(
+            f"Ciclos de carga moderados: {cycles} (uso notable antes de esta compra)"
+        )
     elif cycles >= CYCLE_LOW:
         green_flags.append(f"Ciclos de carga aceptables: {cycles}")
     else:
@@ -33,7 +44,9 @@ def analyze_renovation_risk(indicators: dict, health_pct: float | None) -> dict:
     bits = (indicators.get("warranty_bit"), indicators.get("boot_warranty_bit"))
     warranty_voided = "1" in bits
     # El valor crudo que se devuelve es el que explica la bandera
-    warranty = "1" if warranty_voided else next((b for b in bits if b is not None), None)
+    warranty = (
+        "1" if warranty_voided else next((b for b in bits if b is not None), None)
+    )
     if warranty_voided:
         risk_factors.append(
             "Warranty bit activado (ro.warranty_bit=1): el teléfono fue desbloqueado, flasheado "
@@ -53,8 +66,19 @@ def analyze_renovation_risk(indicators: dict, health_pct: float | None) -> dict:
         )
     elif knox_fuse == "0":
         green_flags.append("Fusible Knox de hardware intacto")
+    else:
+        unverified.append("Fusible Knox: el sistema no deja leer /efs/FactoryApp/fuse")
 
-    if health_pct is not None:
+    if overridden:
+        risk_factors.append(
+            "Los valores de la batería están fijados a mano con «dumpsys battery set»: la lectura "
+            "no refleja la batería real. Reinicia el teléfono y vuelve a analizar."
+        )
+    elif health_pct is None:
+        unverified.append(
+            "Salud de la batería: no se pudo calcular con los datos del teléfono"
+        )
+    else:
         if health_pct < 80:
             risk_factors.append(
                 f"Salud de batería baja ({health_pct} %) para un teléfono que se vende como nuevo o reacondicionado"
@@ -71,7 +95,12 @@ def analyze_renovation_risk(indicators: dict, health_pct: float | None) -> dict:
         )
 
     n = len(risk_factors)
-    if n == 0:
+    # «Bajo» con todo ilegible daría una falsa tranquilidad. Heurística propia:
+    # hace falta la salud y al menos uno de warranty bit o fusible Knox.
+    enough = health_pct is not None and (warranty is not None or knox_fuse is not None)
+    if n == 0 and not enough:
+        level, color = "Sin datos suficientes", "gray"
+    elif n == 0:
         level, color = "Bajo", "green"
     elif n <= 2:
         level, color = "Medio", "yellow"
@@ -90,6 +119,6 @@ def analyze_renovation_risk(indicators: dict, health_pct: float | None) -> dict:
         # Valores crudos: distinguen «intacto» (0) de «sin acceso» (None)
         "warranty_bit": warranty,
         "knox_fuse": knox_fuse,
-        "serial": indicators.get("serial"),
+        "serial_masked": mask_serial(indicators.get("serial")),
         "build_fingerprint": fingerprint or None,
     }
